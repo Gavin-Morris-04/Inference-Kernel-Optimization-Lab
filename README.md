@@ -1,444 +1,544 @@
-# Inference Kernel Optimization Lab
+# 🚀 Inference Kernel Optimization Lab
 
-A comprehensive CPU-first optimization study of three critical Transformer inference kernels using Python, NumPy, and Numba JIT compilation.
+**A hands-on CPU performance engineering project demonstrating fundamental optimization techniques for Transformer inference kernels.**
 
-## 🎯 Project Overview
+This project optimizes three critical kernels that power every Transformer model using **only Python, NumPy, and Numba** — no GPU, no CUDA, no PyTorch. Built to demonstrate deep understanding of cache behavior, memory access patterns, and compute optimization for AMD technical interviews.
 
-This project optimizes three kernels that appear in every Transformer inference path:
-1. **GEMM (Matrix Multiply)** - Compute-bound, cache-sensitive
-2. **Stable Softmax** - Memory-heavy, numerically sensitive
-3. **LayerNorm** - Strongly memory-bound, perfect for fusion
+---
 
-Each kernel is implemented in three versions:
-- **Baseline**: Pure Python loops (intentionally slow)
-- **NumPy**: Vectorized operations
-- **Numba**: JIT-compiled with optimizations (tiling, parallelization, fastmath)
+## 🎯 What This Project Does
 
-### Why This Project Matters
+Transformers run on three core operations repeated millions of times:
+1. **Matrix Multiplication (GEMM)** — Projecting embeddings through weight matrices
+2. **Softmax** — Computing attention probabilities  
+3. **LayerNorm** — Normalizing activations
 
-AMD reviewers want to see fundamental performance understanding, not framework usage. This project demonstrates:
-- **Cache awareness** through block tiling
-- **SIMD thinking** through vectorization
-- **Memory-bound optimization** through fused operations
-- **Parallel computation** through thread-level parallelism
-- **Roofline model analysis** to understand compute vs memory bottlenecks
+Each kernel is implemented in **three versions**:
+- 🐌 **Baseline**: Pure Python loops (intentionally slow, demonstrates the problem)
+- ⚡ **NumPy**: Vectorized operations (what you'd write in production)
+- 🔥 **Numba**: JIT-compiled with hand-tuned optimizations (cache blocking, parallelization, SIMD-friendly code)
 
-## 🛠 Tech Stack
+**The Goal**: Understand *why* NumPy/BLAS is fast, and *how* to write kernel-level optimized code from scratch.
 
-- **Python 3.8+**
-- **NumPy** - Vectorized operations
-- **Numba** - CPU JIT compilation with parallel support
-- **pandas** - Results analysis
-- **matplotlib** - Visualization
-- **line_profiler** - Line-by-line profiling
-- **cProfile** - Function-level profiling
+---
 
-**Explicitly NOT using**: CUDA, PyTorch, Triton, or any GPU dependencies.
+## 💡 Why This Matters (AMD Interview Perspective)
 
-## 📁 Repository Structure
+AMD reviewers want to see:
+- ✅ **Cache awareness** (blocking, tiling, memory access patterns)
+- ✅ **SIMD thinking** (vectorization, loop unrolling)
+- ✅ **Memory-bound vs compute-bound** understanding (roofline model)
+- ✅ **Systematic optimization** (benchmarking, profiling, analysis)
 
-```
-inference-kernel-optimization-lab/
-├── README.md
-├── requirements.txt
-├── src/
-│   ├── kernels/
-│   │   ├── matmul_baseline.py      # Pure Python GEMM
-│   │   ├── matmul_numpy.py          # NumPy vectorized GEMM
-│   │   ├── matmul_numba.py          # Numba JIT optimized GEMM
-│   │   ├── softmax_baseline.py      # Pure Python softmax
-│   │   ├── softmax_numpy.py         # NumPy vectorized softmax
-│   │   ├── softmax_numba.py         # Numba JIT optimized softmax
-│   │   ├── layernorm_baseline.py    # Pure Python LayerNorm
-│   │   ├── layernorm_numpy.py       # NumPy vectorized LayerNorm
-│   │   └── layernorm_numba.py       # Numba JIT optimized LayerNorm
-│   ├── bench/
-│   │   ├── bench_matmul.py          # GEMM benchmarking
-│   │   ├── bench_softmax.py         # Softmax benchmarking
-│   │   ├── bench_layernorm.py       # LayerNorm benchmarking
-│   │   └── inference_block.py       # End-to-end inference chain
-│   └── profiling/
-│       ├── profile_baseline.py      # Baseline profiling
-│       └── roofline_analysis.md     # Roofline model analysis
-├── results/
-│   ├── matmul_results.csv
-│   ├── softmax_results.csv
-│   ├── layernorm_results.csv
-│   ├── inference_block_results.csv
-│   └── plots/                       # Generated plots
-└── scripts/
-    ├── run_all_benchmarks.sh        # Linux/Mac runner
-    └── run_all_benchmarks.bat       # Windows runner
-```
+**Not** framework usage or GPU programming. This project demonstrates fundamental CPU optimization understanding.
 
-## 🚀 Quick Start
+---
 
-### 1. Environment Setup
+## ⚡ Quick Start (3 Steps)
 
-```bash
+### Step 1: Setup Environment
+
+```powershell
 # Create virtual environment
 python -m venv venv
 
-# Activate (Windows)
+# Activate it (Windows)
 venv\Scripts\activate
 
-# Activate (Linux/Mac)
-source venv/bin/activate
-
 # Install dependencies
-pip install -U pip
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 2. Run Benchmarks
+### Step 2: Run Benchmarks
 
-```bash
-# Run all benchmarks (Linux/Mac)
-bash scripts/run_all_benchmarks.sh
+```powershell
+# Run all benchmarks (recommended)
+python src\bench\bench_matmul.py
+python src\bench\bench_softmax.py
+python src\bench\bench_layernorm.py
 
-# Run all benchmarks (Windows)
+# Or use the automated script
 scripts\run_all_benchmarks.bat
-
-# Or run individual benchmarks
-python src/bench/bench_matmul.py
-python src/bench/bench_softmax.py
-python src/bench/bench_layernorm.py
-python src/bench/inference_block.py
 ```
 
-### 3. Test Individual Kernels
+### Step 3: View Results
 
-```bash
-# Test baseline implementations
-python src/kernels/matmul_baseline.py
-python src/kernels/softmax_baseline.py
-python src/kernels/layernorm_baseline.py
+Results are saved as CSV files in `results/`:
+- `matmul_results.csv` — GEMM performance data
+- `softmax_results.csv` — Softmax performance data  
+- `layernorm_results.csv` — LayerNorm performance data
 
-# Test NumPy implementations
-python src/kernels/matmul_numpy.py
-python src/kernels/softmax_numpy.py
-python src/kernels/layernorm_numpy.py
-
-# Test Numba implementations (first run compiles JIT)
-python src/kernels/matmul_numba.py
-python src/kernels/softmax_numba.py
-python src/kernels/layernorm_numba.py
+View them in Excel, or generate plots:
+```powershell
+python src\bench\plot_results.py
 ```
 
-## 🧩 Kernel Breakdown
+---
+
+## 📊 What You'll See
+
+### Benchmark Output Example
+
+```
+======================================================================
+GEMM Benchmark Suite - SINGLE-THREADED MODE
+======================================================================
+Mode: Single-threaded kernel efficiency comparison
+  - NumPy BLAS: 1 thread (limited via env vars set before import)
+  - Numba: 1 thread (set via set_num_threads)
+  - Purpose: Fair kernel quality comparison (no threading effects)
+
+Benchmarking GEMM: M=512, K=1024, N=512
+  Testing baseline (pure Python)...
+    Skipping baseline (problem too large)
+  Testing NumPy (vectorized)...
+  Testing Numba (JIT optimized)...
+    Numba threads: 1
+      block=16: median=46.234 ms, mean=47.123 ms, std=1.456 ms
+      block=32: median=52.145 ms, mean=53.892 ms, std=2.123 ms
+      block=64: median=58.234 ms, mean=59.876 ms, std=3.234 ms
+    Optimal block size: 16
+
+Results saved to: results/matmul_results.csv
+```
+
+### Expected Performance (Single-Threaded)
+
+| Kernel | Implementation | Performance | Notes |
+|--------|---------------|-------------|-------|
+| **GEMM** | Baseline | ~0.01 GFLOPs | Intentionally slow |
+| | NumPy | ~130-140 GFLOPs | BLAS-optimized |
+| | Numba | ~3-4 GFLOPs (single-thread) | Custom optimized |
+| **Softmax** | Baseline | Very slow | Pure Python |
+| | NumPy | Fast | Vectorized |
+| | Numba | Faster | Parallelized |
+| **LayerNorm** | Baseline | Very slow | Pure Python |
+| | NumPy | Fast | Vectorized |
+| | Numba | Comparable | Memory-bound |
+
+**Key Insight**: Numba won't beat NumPy/BLAS (that's expected!), but it demonstrates optimization understanding.
+
+---
+
+## 🧩 Project Structure
+
+```
+inference-kernel-optimization-lab/
+├── README.md                    # This file
+├── requirements.txt             # Python dependencies
+├── QUICKSTART.md               # Detailed quick start guide
+│
+├── src/
+│   ├── kernels/                # Kernel implementations
+│   │   ├── matmul_baseline.py      # Pure Python GEMM
+│   │   ├── matmul_numpy.py         # NumPy GEMM (@ operator)
+│   │   ├── matmul_numba.py         # Optimized Numba GEMM (tiled, parallel)
+│   │   ├── softmax_baseline.py     # Pure Python softmax
+│   │   ├── softmax_numpy.py        # NumPy softmax
+│   │   ├── softmax_numba.py        # Parallel Numba softmax
+│   │   ├── layernorm_baseline.py   # Pure Python LayerNorm
+│   │   ├── layernorm_numpy.py      # NumPy LayerNorm
+│   │   └── layernorm_numba.py      # Optimized Numba LayerNorm
+│   │
+│   ├── bench/                  # Benchmarking scripts
+│   │   ├── bench_matmul.py         # GEMM benchmarks
+│   │   ├── bench_softmax.py        # Softmax benchmarks
+│   │   ├── bench_layernorm.py      # LayerNorm benchmarks
+│   │   ├── inference_block.py      # End-to-end chain
+│   │   └── plot_results.py         # Generate performance plots
+│   │
+│   └── profiling/              # Analysis tools
+│       ├── profile_baseline.py     # Profile slow implementations
+│       └── roofline_analysis.md    # Roofline model analysis
+│
+├── results/                    # Benchmark results (CSV files)
+│   └── plots/                  # Generated performance plots
+│
+└── scripts/
+    └── run_all_benchmarks.bat  # Run all benchmarks (Windows)
+    └── run_all_benchmarks.sh   # Run all benchmarks (Linux/Mac)
+```
+
+---
+
+## 🔍 Key Optimizations Demonstrated
 
 ### 1. GEMM (Matrix Multiply)
 
-**Operation**: `C = A @ B` where A is (M×K), B is (K×N), C is (M×N)
+**The Problem**: Naive triple-loop matrix multiply is extremely slow (cache misses, no vectorization).
 
-**Baseline**: Triple nested loop in pure Python
-- O(M×K×N) iterations
-- No vectorization, no SIMD
-- Extremely slow but correct
+**The Solution**:
+- ✅ **Block Tiling**: Divide matrices into cache-friendly tiles (32×32)
+- ✅ **B Matrix Transpose**: Pre-transpose B so both matrices accessed row-major (cache-friendly)
+- ✅ **Local Accumulators**: Keep tile results in L1 cache, write once
+- ✅ **Parallelization**: Use `prange` for thread-level parallelism
+- ✅ **4-Way Loop Unrolling**: Help Numba generate better SIMD code
 
-**NumPy**: Uses `@` operator
-- BLAS-backed (often OpenBLAS or MKL)
-- Highly optimized via vendor libraries
-- Good baseline for comparison
-
-**Numba Optimizations**:
-- **Block Tiling (32×32)**: Divides matrices into cache-friendly tiles
-- **Local Accumulators**: Keeps intermediate results in registers/L1 cache
-- **Parallel Outer Loops**: `prange` for thread-level parallelism
-- **FastMath**: Aggressive floating-point optimizations
-
-**Key Insight**: High arithmetic intensity (O(N) FLOPs per byte for square matrices). This is a **compute-bound** kernel.
+**Result**: ~3-4 GFLOPs single-threaded (vs ~0.01 GFLOPs naive), still significantly slower than BLAS (~130-140 GFLOPs) but demonstrates optimization techniques.
 
 ### 2. Stable Softmax
 
-**Operation**: `softmax(x) = exp(x - max(x)) / sum(exp(x - max(x)))`
+**The Problem**: Standard softmax can overflow. Need numerical stability.
 
-**Baseline**: Pure Python loops with three passes
-- Pass 1: Find max per row
-- Pass 2: Compute exp(x - max) and accumulate sum
-- Pass 3: Normalize by sum
+**The Solution**:
+- ✅ **Max Subtraction**: Subtract row max before exp (prevents overflow)
+- ✅ **Row-wise Parallelization**: Process rows independently in parallel
+- ✅ **Fused Operations**: Minimize memory passes
 
-**NumPy**: Vectorized row-wise operations
-- `np.max(axis=1, keepdims=True)` for stability
-- Broadcasting for efficient computation
-
-**Numba Optimizations**:
-- **Row-wise Parallelization**: `prange` over rows
-- **Fused Operations**: Minimize memory passes
-- **Numerical Stability**: Max subtraction prevents overflow
-- **Cache-Friendly Access**: Contiguous row access patterns
-
-**Key Insight**: Low arithmetic intensity (~0.33 FLOPs/byte). This is a **memory-bound** kernel with compute components.
+**Result**: Fast, numerically stable, parallelized.
 
 ### 3. LayerNorm
 
-**Operation**: `(x - mean) / sqrt(variance + eps) * gamma + beta`
+**The Problem**: Multiple passes over data, temporary arrays.
 
-**Baseline**: Pure Python loops with three passes
-- Pass 1: Compute mean per row
-- Pass 2: Compute variance per row
-- Pass 3: Normalize and scale
+**The Solution**:
+- ✅ **Fused Operations**: Compute mean, variance, normalize in minimal passes
+- ✅ **Contiguous Memory Access**: Row-major patterns for cache efficiency
+- ✅ **Parallel Row Processing**: Independent rows computed in parallel
 
-**NumPy**: Vectorized using `np.mean` and `np.var`
-- Efficient reduction operations
-- Broadcasting for gamma and beta
+**Result**: Optimized memory-bound kernel.
 
-**Numba Optimizations**:
-- **Fused Operations**: Minimize temporary arrays
-- **Parallel Row Processing**: `prange` over rows
-- **Contiguous Memory Access**: Row-major patterns
-- **Avoid Multiple Passes**: Where possible, fuse operations
+---
 
-**Key Insight**: Low arithmetic intensity (~0.5 FLOPs/byte). This is a **strongly memory-bound** kernel.
+## 📈 Benchmarking Methodology
 
-## 📊 Optimization Strategies
+### Single-Threaded Mode (Default)
 
-### GEMM Optimizations
+**Purpose**: Fair kernel efficiency comparison without threading effects.
 
-1. **Block Tiling (Cache Locality)**
-   ```python
-   # Divide into 32×32 tiles
-   for tile_i in prange(num_tile_rows):
-       for tile_j in range(num_tile_cols):
-           # Process tile in L1/L2 cache
-   ```
-   - Maximizes cache reuse
-   - Reduces memory traffic
-   - Each tile element accessed multiple times
+**Configuration**:
+- NumPy BLAS: 1 thread (limited via environment variables)
+- Numba: 1 thread (set via `set_num_threads(1)`)
 
-2. **Local Accumulators**
-   ```python
-   tile_C = np.zeros((tile_size, tile_size))
-   # Accumulate in tile_C before writing to output
-   ```
-   - Minimizes writes to main memory
-   - Keeps data in fast cache levels
+**Why**: Focuses on kernel implementation quality (tiling, cache blocking) rather than parallelization.
 
-3. **Parallelization**
-   ```python
-   for tile_i in prange(num_tile_rows):  # Parallel
-   ```
-   - Utilizes all CPU cores
-   - Independent tiles can be computed in parallel
-
-### Softmax Optimizations
-
-1. **Row-wise Parallelization**
-   ```python
-   for i in prange(M):  # Parallel over rows
-       # Process row i independently
-   ```
-   - Rows are independent
-   - Perfect parallelization opportunity
-
-2. **Numerical Stability**
-   ```python
-   row_max = max(x[i, :])  # Subtract max before exp
-   exp_x = exp(x - row_max)  # Prevents overflow
-   ```
-   - Critical for numerical correctness
-   - Standard practice in production systems
-
-3. **Fused Operations**
-   - Compute exp and sum in one pass
-   - Normalize with inverse multiplication
-
-### LayerNorm Optimizations
-
-1. **Minimize Memory Passes**
-   - Compute mean and variance efficiently
-   - Fuse normalization and scaling
-
-2. **Contiguous Access Patterns**
-   - Row-major iteration
-   - Cache line utilization
-
-3. **Avoid Temporary Arrays**
-   - Reuse memory locations
-   - In-place operations where possible
-
-## 📈 Benchmark Results
-
-### Expected Performance Characteristics
-
-After running benchmarks, you should see results like:
-
-#### GEMM Performance
-- **Baseline**: Extremely slow (only for small matrices)
-- **NumPy**: Fast (BLAS-optimized)
-- **Numba**: Comparable or faster than NumPy (depending on matrix size)
-
-**Example Results** (for 1024×1024 matrices):
-```
-kernel    M      K      N     latency_ms    throughput_gflops
-baseline  1024   1024   1024  (too slow)     -
-numpy      1024   1024   1024  15.2           138.2
-numba      1024   1024   1024  12.8           163.8
+**Run**:
+```powershell
+python src\bench\bench_matmul.py
 ```
 
-#### Softmax Performance
-- **Baseline**: Slow for large inputs
-- **NumPy**: Fast vectorized
-- **Numba**: Often faster due to parallelization
+### Robust Timing Methodology
 
-**Example Results** (for batch_size=512, seq_len=2048):
-```
-kernel    batch_size  seq_len  latency_ms    throughput_mops
-baseline  512         2048     (too slow)     -
-numpy     512         2048     2.3            1823.5
-numba     512         2048     1.1            3818.2
-```
+- **Median-based**: Uses median (not mean) for primary latency metric — robust to outliers
+- **Adequate iterations**: 
+  - Small problems: 500-1000 runs (reduce variance)
+  - Large problems: 5-10 runs (minimize overhead)
+- **Block size sweep**: Tests multiple tile sizes (16, 32, 64), picks optimal
+- **Warmup**: Sufficient warmup to stabilize CPU state and JIT compilation
 
-#### LayerNorm Performance
-- **Baseline**: Slow for large inputs
-- **NumPy**: Fast vectorized
-- **Numba**: Competitive with NumPy
+---
 
-**Example Results** (for batch_size=256, hidden_dim=4096):
-```
-kernel    batch_size  hidden_dim  latency_ms    throughput_mops
-baseline  256         4096        (too slow)     -
-numpy     256         4096        1.2            6990.5
-numba     256         4096        0.9            9320.7
-```
+## 🧮 Understanding the Results
 
-*Note: Actual results depend on your CPU architecture and system configuration.*
+### Roofline Model Analysis
 
-## 🔍 Profiling Insights
+See `HOW_IT_WORKS.md` for detailed roofline-style analysis.
 
-### Baseline Profiling
+**Key Classifications**:
+- **GEMM**: **Compute-bound** (high arithmetic intensity, grows with matrix size)
+- **Softmax**: **Memory-bound** (low arithmetic intensity, < 1 FLOP/byte)
+- **LayerNorm**: **Memory-bound** (low arithmetic intensity, < 1 FLOP/byte)
 
-Run profiling on baseline implementations:
-```bash
-python src/profiling/profile_baseline.py
-```
+### Why Numba Can't Match BLAS
 
-**Expected Findings**:
-- Most time spent in Python loop overhead
-- Function call overhead dominates
-- NumPy operations inside loops are slow
+NumPy's `A @ B` calls optimized BLAS libraries (MKL/OpenBLAS) that use:
+- Hand-tuned assembly microkernels
+- Explicit SIMD instructions (AVX/AVX2/AVX-512)
+- Platform-specific optimizations
+- Advanced prefetching
 
-### Optimization Impact
+Numba relies on compiler auto-vectorization, which is less effective. A 30-40× performance gap is **expected and normal**.
 
-**GEMM**:
-- Baseline: ~99% time in Python loops
-- Numba: ~95% time in compiled code, ~5% overhead
+**What Matters**: Demonstrating understanding of optimization techniques, not matching BLAS.
 
-**Softmax**:
-- Baseline: Multiple passes over data
-- Numba: Fused operations, reduced memory traffic
+---
 
-**LayerNorm**:
-- Baseline: Three separate passes
-- Numba: Optimized passes, better cache behavior
+## 🎓 Learning Outcomes
 
-## 🧮 Roofline Model Analysis
+By working through this project, you'll understand:
 
-See `src/profiling/roofline_analysis.md` for detailed analysis.
+1. **Cache Behavior**
+   - Why block tiling works
+   - Memory access pattern optimization
+   - Cache hierarchy awareness
 
-### Summary
+2. **Memory vs Compute Bound**
+   - Roofline model analysis
+   - Arithmetic intensity calculation
+   - Bottleneck identification
 
-| Kernel | Arithmetic Intensity | Classification | Bottleneck |
-|--------|---------------------|----------------|------------|
-| GEMM (1024×1024) | ~170 FLOPs/byte | **Compute-bound** | CPU FLOPS |
-| Softmax (512×2048) | ~0.33 FLOPs/byte | **Memory-bound** | Memory BW |
-| LayerNorm (256×4096) | ~0.5 FLOPs/byte | **Memory-bound** | Memory BW |
+3. **Optimization Techniques**
+   - Loop unrolling
+   - Memory layout optimization (B-transpose)
+   - Parallelization strategies
 
-### Key Insights
+4. **Professional Benchmarking**
+   - Fair comparisons (single-threaded mode)
+   - Statistical rigor (median, percentiles)
+   - Reproducible methodology
 
-1. **GEMM** is compute-bound because:
-   - High arithmetic intensity (grows with matrix size)
-   - Data reuse (each element of A/B used multiple times)
-   - Block tiling maximizes cache utilization
-   - Optimizations target compute efficiency
+---
 
-2. **Softmax** is memory-bound because:
-   - Low arithmetic intensity (< 1 FLOP/byte)
-   - Limited data reuse
-   - Expensive operations don't overcome memory limitation
-   - Optimizations target memory bandwidth utilization
+## 🛠 Advanced Usage
 
-3. **LayerNorm** is memory-bound because:
-   - Very low arithmetic intensity
-   - Multiple passes over data
-   - Limited computation per byte
-   - Optimizations minimize memory traffic
+### Generate Performance Plots
 
-## 🔗 End-to-End Inference Block
-
-The `inference_block.py` chains kernels together:
-
-```
-Input → GEMM (Projection) → Softmax → LayerNorm → Output
+```powershell
+python src\bench\plot_results.py
 ```
 
-### Amdahl's Law Analysis
+Plots saved in `results/plots/`:
+- Latency comparisons
+- Throughput comparisons
+- Time breakdowns
 
-If GEMM takes 70% of time with 10× speedup:
-- Overall speedup = 1 / (0.3 + 0.7/10) = 3.7×
+### Profile Baselines
 
-If all three kernels are optimized:
-- Each contributes to overall speedup
-- The slowest remaining component becomes the bottleneck
-
-### Benchmarking
-
-```bash
-python src/bench/inference_block.py
+```powershell
+python src\profiling\profile_baseline.py
 ```
 
-**Expected Breakdown** (for typical transformer sizes):
-- Projection (GEMM): 60-80% of total time
-- Softmax: 10-20% of total time
-- LayerNorm: 10-20% of total time
+Shows where pure Python implementations spend time (spoiler: it's loops and function call overhead).
 
-This demonstrates why GEMM optimization has the most impact on overall throughput.
+### Verbose Block Size Sweep
 
-## 📝 How to Reproduce Results
+```powershell
+python src\bench\bench_matmul.py --verbose-sweep
+```
 
-1. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+Shows detailed block size sweep results for all matrix sizes.
 
-2. **Run Benchmarks**
-   ```bash
-   # All at once
-   bash scripts/run_all_benchmarks.sh  # Linux/Mac
-   scripts\run_all_benchmarks.bat      # Windows
-   
-   # Or individually
-   python src/bench/bench_matmul.py
-   python src/bench/bench_softmax.py
-   python src/bench/bench_layernorm.py
-   python src/bench/inference_block.py
-   ```
+### Test Individual Kernels
 
-3. **Check Results**
-   - CSV files in `results/` directory
-   - Contains latency, throughput, and percentiles
+```powershell
+# Test correctness
+python src\kernels\matmul_numba.py
+python src\kernels\softmax_numba.py
+python src\kernels\layernorm_numba.py
+```
 
-4. **Profile (Optional)**
-   ```bash
-   python src/profiling/profile_baseline.py
-   ```
+---
 
-5. **View Roofline Analysis**
-   - Read `src/profiling/roofline_analysis.md`
+## 📋 Requirements
 
-## 🎓 Key Learnings
+- **Python 3.8+**
+- **NumPy** (>=1.24.0) — Vectorized operations
+- **Numba** (>=0.58.0) — JIT compilation
+- **pandas** (>=2.0.0) — Results analysis
+- **matplotlib** (>=3.7.0) — Plotting
+- **line_profiler** (>=4.1.0) — Profiling
+- **py-cpuinfo** (>=9.0.0) — System info
 
-1. **Cache Awareness**: Block tiling in GEMM shows massive performance gains
-2. **Memory vs Compute**: Understanding arithmetic intensity is crucial
-3. **Parallelization**: Not all kernels benefit equally from parallelization
-4. **Numerical Stability**: Softmax max-subtraction is essential
-5. **Amdahl's Law**: Optimizing the dominant kernel has the most impact
+Install all with:
+```powershell
+pip install -r requirements.txt
+```
 
-## 📚 References
+---
 
-- Numba Documentation: https://numba.readthedocs.io/
-- Roofline Model: Williams, Waterman, Patterson (2009)
-- Transformer Architecture: Vaswani et al. (2017)
+## 🔬 Technical Deep Dive
+
+### Optimization Techniques Applied
+
+#### Cache Blocking (GEMM)
+```python
+# Divide into 32×32 tiles
+for tile_i in prange(num_tiles_i):
+    for jj in range(0, N, block):
+        tile_C = np.zeros((tile_height, tile_width))  # L1 cache
+        for kk in range(0, K, block):
+            # Compute tile contribution
+            # Tile fits in cache, reused multiple times
+```
+
+#### B Matrix Transpose (GEMM)
+```python
+# Pre-transpose B once
+BT = np.ascontiguousarray(B.T, dtype=np.float32)
+
+# Now both A and BT accessed row-major (cache-friendly)
+acc += A[i, k] * BT[j, k]  # Both row-major!
+```
+
+#### Loop Unrolling (GEMM)
+```python
+# 4-way unrolling for SIMD opportunities
+while k + 3 < kkmax:
+    acc += A[i, k] * BT[j, k]
+    acc += A[i, k+1] * BT[j, k+1]
+    acc += A[i, k+2] * BT[j, k+2]
+    acc += A[i, k+3] * BT[j, k+3]
+    k += 4
+```
+
+### Roofline Analysis
+
+For detailed roofline model analysis, see `src/profiling/roofline_analysis.md`.
+
+**Quick Summary**:
+- GEMM: Compute-bound (high FLOPs/byte) → Optimize compute
+- Softmax: Memory-bound (low FLOPs/byte) → Optimize memory access
+- LayerNorm: Memory-bound (low FLOPs/byte) → Optimize memory access
+
+---
+
+## 📚 Documentation
+
+- **QUICKSTART.md** — Detailed step-by-step guide
+- **OPTIMIZATION_NOTES.md** — Optimization techniques explained
+- **BENCHMARK_MODES.md** — Single-threaded vs multi-threaded modes
+- **KERNEL_PERFORMANCE_ANALYSIS.md** — Performance characteristics
+- **TIMING_METHODOLOGY_FIXES.md** — Benchmarking methodology
+
+---
+
+## 🎯 What This Demonstrates (For AMD Review)
+
+### ✅ Systematic Optimization Approach
+- Baseline → NumPy → Numba progression
+- Clear understanding of each optimization's impact
+- Block size tuning and parameter optimization
+
+### ✅ Understanding of Fundamental Concepts
+- Cache behavior and blocking
+- Memory access patterns
+- Compute vs memory bound kernels
+- SIMD and vectorization
+
+### ✅ Professional Engineering Practices
+- Fair benchmarking methodology
+- Statistical rigor (median, percentiles)
+- Reproducible results
+- Clear documentation
+
+### ✅ Awareness of Limitations
+- Understands why BLAS is faster
+- Recognizes structural ceilings
+- Can explain performance characteristics
+- Knows what would be needed to match BLAS (hand-tuned SIMD)
+
+---
+
+## 🚦 Running Your First Benchmark
+
+**The absolute fastest way to see it in action:**
+
+```powershell
+# 1. Setup (one time)
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+
+# 2. Run one benchmark
+python src\bench\bench_matmul.py
+
+# 3. Check results
+# Open results\matmul_results.csv in Excel, or:
+python src\bench\plot_results.py
+```
+
+**That's it!** You'll see:
+- Baseline performance (slow)
+- NumPy performance (fast, BLAS-backed)
+- Numba performance (optimized, demonstrates techniques)
+- Block size optimization in action
+
+---
+
+## 💻 System Requirements
+
+- **OS**: Windows, Linux, or macOS
+- **CPU**: Multi-core recommended (Numba uses parallelization)
+- **RAM**: 4GB+ (for large matrix benchmarks)
+- **Python**: 3.8 or higher
+
+**Note**: This is CPU-only. No GPU required or used.
+
+---
+
+## 🐛 Troubleshooting
+
+### Import Errors
+```powershell
+# Make sure you're in the project root directory
+cd "path\to\inference-kernel-optimization-lab"
+python src\bench\bench_matmul.py
+```
+
+### Numba Compilation Slow
+- **Normal!** First run compiles JIT code (takes a few seconds)
+- Subsequent runs are fast (compiled code cached)
+
+### Performance Varies Between Runs
+- **Expected**: CPU frequency scaling, thermal throttling, background processes
+- **Solution**: Benchmark uses median (robust to outliers)
+- Run when system is idle for most consistent results
+
+### "No module named 'src'"
+- Make sure you're running from the project root
+- Check that `src/` directory exists
+
+---
+
+## 📊 Example Results Interpretation
+
+### GEMM Results
+
+```
+kernel    M      K      N     latency_ms    throughput_gflops    block_size
+baseline  64    128     64    82.006         0.013               -
+numpy     64    128     64     0.036        28.862               -
+numba     64    128     64     0.305         3.475               16
+```
+
+**Reading this**:
+- Baseline is **6,400× slower** than NumPy (demonstrates the problem)
+- NumPy is **9× faster** than Numba (BLAS is highly optimized)
+- Numba shows optimization understanding (blocking, B-transpose)
+- Block size 16 is optimal for this size
+
+---
+
+## 🎓 For Interview Discussions
+
+When discussing this project, emphasize:
+
+1. **Why optimizations work** (cache behavior, memory access)
+2. **Systematic approach** (baseline → vectorized → optimized)
+3. **Understanding of limits** (why BLAS is faster, what would be needed)
+4. **Methodology** (fair benchmarking, statistical rigor)
+
+**Key Talking Points**:
+- "B-transpose optimization improved cache behavior by converting column-major to row-major access"
+- "Block size selection depends on cache hierarchy and matrix dimensions"
+- "Median-based timing provides robust measurements despite system jitter"
+- "Single-threaded mode eliminates threading as a variable, focusing on kernel quality"
+
+---
+
+## 📖 Further Reading
+
+- **Roofline Model**: Williams, Waterman, Patterson (2009) — "Roofline: An Insightful Visual Performance Model"
+- **Numba Documentation**: https://numba.readthedocs.io/
+- **BLAS Optimization**: GotoBLAS, OpenBLAS papers on cache blocking
+
+---
+
+## 🏆 Project Status
+
+✅ **Complete and Production-Ready**
+
+- All three kernels implemented (baseline, NumPy, Numba)
+- Comprehensive benchmarking infrastructure
+- Profiling and analysis tools
+- Roofline model analysis
+- End-to-end inference block
+- Complete documentation
+
+**Ready for technical review and interview discussion.**
+
+---
 
 ## 📄 License
 
@@ -446,4 +546,4 @@ This project is provided as-is for educational and demonstration purposes.
 
 ---
 
-**Built for AMD interview demonstration** - Showing fundamental performance understanding through CPU-first optimization.
+**Built for AMD interview demonstration** — Showing fundamental performance understanding through CPU-first optimization. 🚀

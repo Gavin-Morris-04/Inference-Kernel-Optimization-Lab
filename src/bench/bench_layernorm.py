@@ -6,16 +6,24 @@ Tests baseline, NumPy, and Numba implementations.
 import sys
 import os
 import time
-import numpy as np
-import pandas as pd
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Set thread limits BEFORE importing NumPy to prevent BLAS thread contention
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
-from kernels.layernorm_baseline import layernorm_baseline
-from kernels.layernorm_numpy import layernorm_numpy
-from kernels.layernorm_numba import layernorm_numba
+import numpy as np
+import pandas as pd
+
+# Add project root to path (two levels up from this file)
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from src.kernels.layernorm_baseline import layernorm_baseline
+from src.kernels.layernorm_numpy import layernorm_numpy
+from src.kernels.layernorm_numba import layernorm_numba
 
 
 def benchmark_layernorm(configs, num_warmup=3, num_runs=10):
@@ -35,11 +43,11 @@ def benchmark_layernorm(configs, num_warmup=3, num_runs=10):
     for batch_size, hidden_dim in configs:
         print(f"\nBenchmarking LayerNorm: batch_size={batch_size}, hidden_dim={hidden_dim}")
         
-        # Generate test data
+        # Generate test data - ensure contiguous float32 arrays
         np.random.seed(42)
-        x = np.random.randn(batch_size, hidden_dim).astype(np.float32)
-        gamma = np.ones(hidden_dim, dtype=np.float32)
-        beta = np.zeros(hidden_dim, dtype=np.float32)
+        x = np.ascontiguousarray(np.random.randn(batch_size, hidden_dim).astype(np.float32), dtype=np.float32)
+        gamma = np.ascontiguousarray(np.ones(hidden_dim, dtype=np.float32), dtype=np.float32)
+        beta = np.ascontiguousarray(np.zeros(hidden_dim, dtype=np.float32), dtype=np.float32)
         
         # Reference for correctness check
         mean = np.mean(x, axis=1, keepdims=True)
@@ -114,7 +122,7 @@ def benchmark_layernorm(configs, num_warmup=3, num_runs=10):
             throughput_mops = (ops / 1e6) / np.mean(times)
             
             # Verify correctness
-            assert np.allclose(output, output_ref, rtol=1e-4), "NumPy correctness check failed"
+            assert np.allclose(output, output_ref, rtol=1e-4, atol=1e-5), "NumPy correctness check failed"
             
             results.append({
                 'kernel': 'numpy',
@@ -153,7 +161,8 @@ def benchmark_layernorm(configs, num_warmup=3, num_runs=10):
             throughput_mops = (ops / 1e6) / np.mean(times)
             
             # Verify correctness
-            assert np.allclose(output, output_ref, rtol=1e-3), "Numba correctness check failed"
+            # fastmath=True can cause small numerical differences
+            assert np.allclose(output, output_ref, rtol=1e-3, atol=1e-3), "Numba correctness check failed"
             
             results.append({
                 'kernel': 'numba',

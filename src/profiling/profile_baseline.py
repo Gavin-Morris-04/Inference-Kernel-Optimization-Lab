@@ -9,12 +9,13 @@ import pstats
 from pathlib import Path
 import numpy as np
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root to path (two levels up from this file)
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from kernels.matmul_baseline import matmul_baseline
-from kernels.softmax_baseline import softmax_baseline
-from kernels.layernorm_baseline import layernorm_baseline
+from src.kernels.matmul_baseline import matmul_baseline
+from src.kernels.softmax_baseline import softmax_baseline
+from src.kernels.layernorm_baseline import layernorm_baseline
 
 
 def profile_matmul():

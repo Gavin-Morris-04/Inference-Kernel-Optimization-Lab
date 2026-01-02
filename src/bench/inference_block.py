@@ -4,16 +4,25 @@ Tests: Projection (GEMM) → Softmax → LayerNorm
 """
 
 import sys
+import os
 import time
-import numpy as np
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Set thread limits BEFORE importing NumPy to prevent BLAS thread contention
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
-from kernels.matmul_numba import matmul_numba
-from kernels.softmax_numba import softmax_numba
-from kernels.layernorm_numba import layernorm_numba
+import numpy as np
+
+# Add project root to path (two levels up from this file)
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from src.kernels.matmul_numba import matmul_numba
+from src.kernels.softmax_numba import softmax_numba
+from src.kernels.layernorm_numba import layernorm_numba
 
 
 def inference_block(x, W_proj, gamma, beta):
@@ -36,8 +45,10 @@ def inference_block(x, W_proj, gamma, beta):
     timings = {}
     
     # 1. Projection (GEMM)
+    # Transpose W_proj for cache-friendly access
+    W_proj_T = np.ascontiguousarray(W_proj.T, dtype=np.float32)
     t_start = time.perf_counter()
-    proj_output = matmul_numba(x, W_proj)
+    proj_output = matmul_numba(x, W_proj_T, block=32)
     t_end = time.perf_counter()
     timings['projection_ms'] = (t_end - t_start) * 1000
     
@@ -75,15 +86,19 @@ def benchmark_inference_block(configs, num_warmup=3, num_runs=10):
     for batch_size, input_dim, hidden_dim in configs:
         print(f"\nBenchmarking Inference Block: batch={batch_size}, input={input_dim}, hidden={hidden_dim}")
         
-        # Generate test data
+        # Generate test data - ensure contiguous arrays
         np.random.seed(42)
-        x = np.random.randn(batch_size, input_dim).astype(np.float32)
-        W_proj = np.random.randn(input_dim, hidden_dim).astype(np.float32)
-        gamma = np.ones(hidden_dim, dtype=np.float32)
-        beta = np.zeros(hidden_dim, dtype=np.float32)
+        x = np.ascontiguousarray(np.random.randn(batch_size, input_dim).astype(np.float32), dtype=np.float32)
+        W_proj = np.ascontiguousarray(np.random.randn(input_dim, hidden_dim).astype(np.float32), dtype=np.float32)
+        gamma = np.ascontiguousarray(np.ones(hidden_dim, dtype=np.float32), dtype=np.float32)
+        beta = np.ascontiguousarray(np.zeros(hidden_dim, dtype=np.float32), dtype=np.float32)
         
-        # Warmup
-        for _ in range(num_warmup):
+        # Warmup: compile with small subset first, then full size
+        W_proj_small = W_proj[:min(32, input_dim), :min(32, hidden_dim)]
+        W_proj_small_T = np.ascontiguousarray(W_proj_small.T, dtype=np.float32)
+        _ = matmul_numba(x[:min(32, batch_size), :min(32, input_dim)], 
+                         W_proj_small_T, block=32)
+        for _ in range(num_warmup - 1):
             _, _ = inference_block(x, W_proj, gamma, beta)
         
         # Timed runs

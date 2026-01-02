@@ -8,8 +8,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root to path (two levels up from this file)
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 results_dir = Path(__file__).parent.parent.parent / "results"
 plots_dir = results_dir / "plots"
